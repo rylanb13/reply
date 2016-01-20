@@ -1,20 +1,30 @@
 var rl, readline = require('readline');
-
+/*
+    * This method either retrieves an existing interface or creates one
+    * @param (stream) recieves input from the users keyboard
+    * @param (stream) print to the screen
+*/
 var get_interface = function(stdin, stdout) {
   if (!rl) rl = readline.createInterface(stdin, stdout);
   else stdin.resume(); // interface exists
   return rl;
-}
+};
 
+
+/*
+    * Confirms whether or not a question is being answered as yes
+    * @param {String} displays a message for the user
+    * @param {function} callback(err, answer) returns error if confirm wasn't
+    *       entered with a valid value, else returns confirmation
+*/
 var confirm = exports.confirm = function(message, callback) {
-
   var question = {
     'reply': {
       type: 'confirm',
       message: message,
       default: 'yes'
     }
-  }
+  };
 
   get(question, function(err, answer) {
     if (err) return callback(err);
@@ -25,49 +35,65 @@ var confirm = exports.confirm = function(message, callback) {
 
 var get = exports.get = function(options, callback) {
 
-  if (!callback) return; // no point in continuing
+    if (!callback) return; // no point in continuing
 
-  if (typeof options != 'object')
-    return callback(new Error("Please pass a valid options object."))
+    if (typeof options != 'object')
+        return callback(new Error("Please pass a valid options object."));
 
-  var answers = {},
-      stdin = process.stdin,
-      stdout = process.stdout,
-      fields = Object.keys(options);
+// Records a list of answers inputted by the user
+    var answers = {},
+        stdin = process.stdin,
+        stdout = process.stdout,
+        fields = Object.keys(options);
 
+    // Closes the propmt
   var done = function() {
     close_prompt();
     callback(null, answers);
-  }
+  };
 
+    // stops the input from being entered
   var close_prompt = function() {
     stdin.pause();
     if (!rl) return;
     rl.close();
     rl = null;
-  }
-
+  };
+/*
+    *  Default value in case user just presses the enter key. Can be a value or a function that returns a value.
+    * @param (object) it retrieves the type of object within the options.
+    * @param {String} prompts the value of the partial answer
+ */
   var get_default = function(key, partial_answers) {
     if (typeof options[key] == 'object')
       return typeof options[key].default == 'function' ? options[key].default(partial_answers) : options[key].default;
     else
       return options[key];
-  }
+  };
 
+    /*
+        * Guesses the closest answer within the options based on users input.
+        * @param (String) input of the user as a response from the prompted question
+     */
   var guess_type = function(reply) {
 
-    if (reply.trim() == '')
+    if (reply.trim() == '') // if no reply, refers to default
       return;
-    else if (reply.match(/^(true|y(es)?)$/))
+    else if (reply.match(/^(true|y(es)?)$/)) // guesses for inputs relating to 'yes'
       return true;
-    else if (reply.match(/^(false|n(o)?)$/))
+    else if (reply.match(/^(false|n(o)?)$/)) // guesses for inputs relating to 'no'
       return false;
-    else if ((reply*1).toString() === reply)
+    else if ((reply*1).toString() === reply) // guesses for inputs that are numbers
       return reply*1;
 
     return reply;
-  }
-
+  };
+/*
+    * Tests the users input against both the regex and any other values of the related option
+    * @param {object} key - refers to a specific key in the options
+    * @param {String} answer - User's inputted answer for the prompted question
+    * @return - returns a boolean of whether not the user's answer exists
+ */
   var validate = function(key, answer) {
 
     if (typeof answer == 'undefined')
@@ -83,8 +109,11 @@ var get = exports.get = function(options, callback) {
 
     return true;
 
-  }
-
+  };
+/*
+    * Displays an error message when user's input a non-valid value and displays which options are available
+    * @param {object} key - used to find correct values in the options
+ */
   var show_error = function(key) {
     var str = options[key].error ? options[key].error : 'Invalid value.';
 
@@ -92,8 +121,12 @@ var get = exports.get = function(options, callback) {
         str += ' (options are ' + options[key].options.join(', ') + ')';
 
     stdout.write("\033[31m" + str + "\033[0m" + "\n");
-  }
+  };
 
+    /*
+        * Dipslays the message corresponding to the option in the current key
+        * @param {object} key - current object faced with the user
+     */
   var show_message = function(key) {
     var msg = '';
 
@@ -104,50 +137,54 @@ var get = exports.get = function(options, callback) {
       msg += '(options are ' + options[key].options.join(', ') + ')';
 
     if (msg != '') stdout.write("\033[1m" + msg + "\033[0m\n");
-  }
+  };
 
-  // taken from commander lib
-  var wait_for_password = function(prompt, callback) {
+  /*
+        * Masks password fields with '*', with support for backspace keystrokes.
+    */
+    var wait_for_password = function(prompt, callback) {
 
-    var buf = '',
-        mask = '*';
+        var buf = '',
+            mask = '*';
 
-    var keypress_callback = function(c, key) {
+        var keypress_callback = function(c, key) {
 
-      if (key && (key.name == 'enter' || key.name == 'return')) {
-        stdout.write("\n");
-        stdin.removeAllListeners('keypress');
-        // stdin.setRawMode(false);
-        return callback(buf);
-      }
+          if (key && (key.name == 'enter' || key.name == 'return')) {
+            stdout.write("\n");
+            stdin.removeAllListeners('keypress');
+            // stdin.setRawMode(false);
+            return callback(buf);
+          }
 
-      if (key && key.ctrl && key.name == 'c')
-        close_prompt();
+          if (key && key.ctrl && key.name == 'c')
+            close_prompt();
 
-      if (key && key.name == 'backspace') {
-        buf = buf.substr(0, buf.length-1);
-        var masked = '';
-        for (i = 0; i < buf.length; i++) { masked += mask; }
-        stdout.write('\r\033[2K' + prompt + masked);
-      } else {
-        stdout.write(mask);
-        buf += c;
-      }
+          if (key && key.name == 'backspace') {
+            buf = buf.substr(0, buf.length-1);
+            var masked = '';
+            for (i = 0; i < buf.length; i++) { masked += mask; }
+            stdout.write('\r\033[2K' + prompt + masked);
+          } else {
+            stdout.write(mask);
+            buf += c;
+          }
 
-    };
+        };
 
     stdin.on('keypress', keypress_callback);
-  }
-
+  };
+/*
+    * Validates the user's reply on the question, then moves on to the next question
+ */
   var check_reply = function(index, curr_key, fallback, reply) {
     var answer = guess_type(reply);
-    var return_answer = (typeof answer != 'undefined') ? answer : fallback;
+    var return_answer = (typeof answer != 'undefined') ? answer : fallback; // default
 
     if (validate(curr_key, answer))
-      next_question(++index, curr_key, return_answer);
+      next_question(++index, curr_key, return_answer); // moves on to next question if valid answer
     else
       show_error(curr_key) || next_question(index); // repeats current
-  }
+  };
 
   var dependencies_met = function(conds) {
     for (var key in conds) {
@@ -165,8 +202,10 @@ var get = exports.get = function(options, callback) {
     }
 
     return true;
-  }
-
+  };
+/*
+    * Prompts next question in the list if the current question has been answered
+ */
   var next_question = function(index, prev_key, answer) {
     if (prev_key) answers[prev_key] = answer;
 
@@ -208,7 +247,7 @@ var get = exports.get = function(options, callback) {
 
     }
 
-  }
+  };
 
   rl = get_interface(stdin, stdout);
   next_question(0);
@@ -223,4 +262,4 @@ var get = exports.get = function(options, callback) {
     callback(err, answers);
   });
 
-}
+};
