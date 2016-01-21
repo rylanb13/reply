@@ -14,8 +14,7 @@ var get_interface = function(stdin, stdout) {
 /*
     * Confirms whether or not a question is being answered as yes
     * @param {String} displays a message for the user
-    * @param {function} callback(err, answer) returns error if confirm wasn't
-    *       entered with a valid value, else returns confirmation
+    * @param {function} callback(err, answer) completes after the user has input the information needed
 */
 var confirm = exports.confirm = function(message, callback) {
   var question = {
@@ -52,7 +51,7 @@ var get = exports.get = function(options, callback) {
     callback(null, answers);
   };
 
-    // stops the input from being entered
+    // stops the input input streams and closes the readline
   var close_prompt = function() {
     stdin.pause();
     if (!rl) return;
@@ -61,8 +60,9 @@ var get = exports.get = function(options, callback) {
   };
 /*
     *  Default value in case user just presses the enter key. Can be a value or a function that returns a value.
-    * @param (object) it retrieves the type of object within the options.
-    * @param {String} prompts the value of the partial answer
+    * @param {Object} key - it retrieves the type of object within the options.
+    * @param {String} partial_answers - prompts the value of the partial answer
+    * @return - Returns the default answers for the chosen options
  */
   var get_default = function(key, partial_answers) {
     if (typeof options[key] == 'object')
@@ -73,7 +73,8 @@ var get = exports.get = function(options, callback) {
 
     /*
         * Guesses the closest answer within the options based on users input.
-        * @param (String) input of the user as a response from the prompted question
+        * @param (String) reply - input of the user as a response from the prompted question
+        * @return - returns the guessed user input
      */
   var guess_type = function(reply) {
 
@@ -92,7 +93,7 @@ var get = exports.get = function(options, callback) {
     * Tests the users input against both the regex and any other values of the related option
     * @param {object} key - refers to a specific key in the options
     * @param {String} answer - User's inputted answer for the prompted question
-    * @return - returns a boolean of whether not the user's answer exists
+    * @return - returns whether not the user's answer exists
  */
   var validate = function(key, answer) {
 
@@ -175,6 +176,11 @@ var get = exports.get = function(options, callback) {
   };
 /*
     * Validates the user's reply on the question, then moves on to the next question
+    * @param index - keeps track of which question is currently in use
+    * @param curr_key - user's current input
+    * @param fallback - refers to the default answer if user doesn't respond
+    * @param reply - users input to the prompt
+ */
  */
   var check_reply = function(index, curr_key, fallback, reply) {
     var answer = guess_type(reply);
@@ -185,7 +191,11 @@ var get = exports.get = function(options, callback) {
     else
       show_error(curr_key) || next_question(index); // repeats current
   };
-
+/*
+     * Checks if the conditions/dependencies are met
+     * @param conds - required condition for the dependency
+     * @return - whether or not the dependency was met
+ */
   var dependencies_met = function(conds) {
     for (var key in conds) {
       var cond = conds[key];
@@ -205,6 +215,10 @@ var get = exports.get = function(options, callback) {
   };
 /*
     * Prompts next question in the list if the current question has been answered
+     * @param index - keeps track of which question is currently in use
+     * @param prev_key - keeps track of the user's input on the previous question
+     * @param answer - user's current input
+     * @return - current answer then next question
  */
   var next_question = function(index, prev_key, answer) {
     if (prev_key) answers[prev_key] = answer;
